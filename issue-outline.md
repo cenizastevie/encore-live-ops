@@ -79,6 +79,31 @@ AWS staging environment.
   pass in CI.
 - Read first: (none — this wires together 0.1, 0.2, and 0.4)
 
+### Issue 0.6 — CVE scanning pipeline
+**Sub-issue 0.6.1 — Trivy filesystem scan in GitHub Actions**
+- Expected outcome: A workflow runs Trivy against the repo on every PR, on
+  push to `main`, and on a daily schedule (new CVEs are published against
+  code that's already merged). It fails on fixable `HIGH`/`CRITICAL` findings
+  only, uses least-privilege permissions (`contents: read`,
+  `security-events: write`), pins third-party actions by commit SHA, and
+  uploads SARIF so findings appear in the repo's Security tab and as PR
+  annotations. Verified by temporarily adding a known-vulnerable pinned
+  dependency and watching the job fail.
+- Read first: https://github.com/aquasecurity/trivy-action
+
+**Sub-issue 0.6.2 — Dependabot alerts and update PRs**
+- Expected outcome: Dependabot is enabled for `pip`, `docker`, and
+  `github-actions` ecosystems, so vulnerable dependencies get an automatic
+  fix PR, not just a failing scan.
+- Read first: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates
+
+**Sub-issue 0.6.3 — Container image scan for `encore-api`**
+- Expected outcome: The image built in Sub-issue 3.4.1 is scanned by Trivy
+  before it is pushed to the registry; an image with a fixable
+  `HIGH`/`CRITICAL` CVE in its base layers or packages is never published,
+  and therefore never reaches staging via Argo CD.
+- Read first: https://trivy.dev/latest/docs/target/container_image/
+
 ---
 
 ## Epic 1: Foundation — EKS + Terraform
@@ -306,3 +331,34 @@ merging — merges to `main` promote to staging per Issue 0.4/0.5.
 **Sub-issue 6.5.2 — Screen recording of the sandbox in action**
 - Expected outcome: A short video showing a ticket drop → HPA scale-up, kill-pod → reschedule, and an agent report flagging a fraud anomaly — this becomes your interview demo.
 - Read first: (none)
+
+### Issue 6.6 — Runtime CVE scanning in AWS
+Complements the CI scan (Issue 0.6): CI catches vulnerabilities before they
+ship; runtime scanning catches CVEs published *after* an image is already
+deployed.
+
+**Sub-issue 6.6.1 — ECR enhanced scanning via Amazon Inspector**
+- Expected outcome: Enhanced (continuous) scanning is enabled in Terraform for
+  the ECR repositories holding `encore-api`. Inspector rescans stored images
+  whenever a new CVE is published, and `HIGH`/`CRITICAL` findings are routed
+  via EventBridge to an alert — not left to be discovered in the console.
+  Evaluate an ECR pull-through cache so third-party images (Strimzi, ECK,
+  Argo CD, Karpenter) are pulled through ECR and covered by Inspector too.
+- Read first: https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning-enhanced.html
+
+**Sub-issue 6.6.2 — Trivy Operator for scheduled in-cluster scans**
+- Expected outcome: Trivy Operator runs in the `encore` cluster and rescans
+  every *running* workload's image on a weekly schedule — including
+  third-party images that never touch ECR. Results are stored as
+  `VulnerabilityReport` resources (`kubectl get vulnerabilityreports -A`).
+  Verified by deploying a known-vulnerable image and seeing it reported
+  within one scan cycle.
+- Read first: https://aquasecurity.github.io/trivy-operator/latest/
+
+**Sub-issue 6.6.3 — Feed runtime CVE findings to the review agent**
+- Expected outcome: The Encore review agent (Epic 5) reads Inspector findings
+  and/or `VulnerabilityReport` resources, and `/agent/report` flags a newly
+  critical CVE in a running image (e.g. a Kafka or Elasticsearch image) as
+  an anomaly with a suggested next step. The agent's access stays read-only
+  (Sub-issue 5.1.1).
+- Read first: https://docs.aws.amazon.com/inspector/latest/user/findings-managing.html
