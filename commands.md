@@ -5,6 +5,20 @@ Run everything from the repo root (`encore-live-ops/`).
 
 ## Pre-commit
 
+> **Hooks run inside Docker.** Windows Application Control blocks the native
+> binaries (`pre-commit.exe`, mypy, Checkov's `rustworkx.dll`), so the git
+> hooks call `tools/hooks/run-hooks.sh`, which runs pre-commit in the
+> `encore-hooks` container. Docker Desktop must be running. On a fresh clone,
+> run `sh tools/hooks/install-hooks.sh` once. The commands in the first table
+> below won't work natively here; use the Docker versions instead.
+
+| What (Docker) | Command |
+|---|---|
+| Install the git hooks (once per clone) | `sh tools/hooks/install-hooks.sh` |
+| Run commit checks on **staged** files | `sh tools/hooks/run-hooks.sh pre-commit` |
+| Run push checks (pytest) | `sh tools/hooks/run-hooks.sh pre-push` |
+| Rebuild the image after editing the Dockerfile | `docker build -t encore-hooks tools/hooks` |
+
 | What | Command |
 |---|---|
 | Run all hooks on **staged** files (same as `git commit`) | `pre-commit run` |

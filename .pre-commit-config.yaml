@@ -1,3 +1,5 @@
+default_stages: [pre-commit]
+
 repos:
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.109.4
@@ -6,3 +8,31 @@ repos:
       - id: terraform_validate
       - id: terraform_tflint
       - id: terraform_checkov
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.5
+    hooks:
+      - id: ruff-check
+        args: [--config=encore-api/pyproject.toml]
+        files: ^encore-api/
+      - id: ruff-format
+        args: [--config=encore-api/pyproject.toml]
+        files: ^encore-api/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.4.1
+    hooks:
+      - id: mypy
+        args: [--config-file=encore-api/pyproject.toml]
+        files: ^encore-api/
+        # additional_dependencies: add type stubs / typed libs as encore-api grows
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest encore-api
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
