@@ -212,6 +212,33 @@ AWS staging environment.
 - Expected outcome: Log indices roll over and expire automatically — they don't grow unbounded across ticket-drop events.
 - Read first: https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s
 
+### Issue 2.3 — Kafka reliability and delivery behaviour
+Hands-on experiments that prove the harder Kafka concepts (replication,
+ordering, delivery semantics, replay, retention) instead of just reading
+about them. Each sub-issue ends with a short written note in the repo
+explaining what you predicted, what happened, and why. Do these after the
+basics (Issue 0.3.1 locally, Issue 2.1 on the cluster) are working.
+
+**Sub-issue 2.3.1 — Replication, ISR, and surviving a broker failure**
+- Expected outcome: With 3 brokers, replication factor 3, `min.insync.replicas=2` and producers using `acks=all`, you kill one broker mid-load and show producers keep writing and a new partition leader is elected. Then kill a second broker and show writes are rejected rather than silently risking data loss. Written note explains ISR and who decides leader election (the controller quorum).
+- Read first: https://kafka.apache.org/documentation/#replication
+
+**Sub-issue 2.3.2 — Partition keys, ordering, and the consumer-group ceiling**
+- Expected outcome: Events keyed by `ticket_id` always land in the same partition and are consumed in order. Scaling a consumer group beyond the partition count leaves the extra consumers idle, and you can show it. Written note covers how to choose partition count and why it can't be reduced later.
+- Read first: https://kafka.apache.org/documentation/#intro_concepts_and_terms
+
+**Sub-issue 2.3.3 — Delivery semantics and idempotent consumption**
+- Expected outcome: Crashing the consumer between processing a message and committing its offset produces a visible duplicate (at-least-once). The consumer is then made idempotent so a replayed purchase does not create a second record in Elasticsearch. Written note compares at-most-once, at-least-once, and exactly-once.
+- Read first: https://kafka.apache.org/documentation/#semantics
+
+**Sub-issue 2.3.4 — Offset reset and replay**
+- Expected outcome: After a deliberately introduced consumer bug is fixed, you reset the consumer group's offsets and reprocess the last window of `ticket-purchases` events, with the outcome verified in Elasticsearch. Written note explains why this is possible with a log but not with a plain queue.
+- Read first: https://kafka.apache.org/documentation/#basic_ops_consumer_group
+
+**Sub-issue 2.3.5 — Retention, disk usage, and what happens when a broker disk fills**
+- Expected outcome: Topic retention (`retention.ms` / `retention.bytes`) is set deliberately per topic, and you show old segments being deleted. You also observe and document broker behaviour as its volume approaches full, and how you would detect it before it happens.
+- Read first: https://kafka.apache.org/documentation/#topicconfigs
+
 ---
 
 ## Epic 3: Application — `encore-api` (FastAPI Service)
